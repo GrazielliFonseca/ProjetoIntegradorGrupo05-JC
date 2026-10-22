@@ -19,6 +19,7 @@ public class ProdutoService {
     }
 
     public Produto cadastrar(Produto produto) {
+        validarProduto(produto);
         validarNomeUnico(produto.getNome());
         if (produto.getPrudutoDisponivel() == null) {
             produto.setPrudutoDisponivel(true);
@@ -27,12 +28,19 @@ public class ProdutoService {
     }
 
     public Produto editar(Long id, Produto produtoAtualizado) {
+        validarProduto(produtoAtualizado);
         Produto produtoExistente = buscarPorId(id);
 
+        if (!produtoExistente.getNome().equals(produtoAtualizado.getNome())
+                && produtoRepository.existsByNome(produtoAtualizado.getNome())) {
+            throw erro("Já existe um produto cadastrado com o nome " + produtoAtualizado.getNome() + ".");
+        }
         produtoExistente.setNome(produtoAtualizado.getNome());
         produtoExistente.setDescricao(produtoAtualizado.getDescricao());
         produtoExistente.setURL(produtoAtualizado.getURL());
-        produtoExistente.setPrudutoDisponivel(produtoAtualizado.getPrudutoDisponivel());
+        if (produtoAtualizado.getPrudutoDisponivel() != null) {
+            produtoExistente.setPrudutoDisponivel(produtoAtualizado.getPrudutoDisponivel());
+        }
 
         return produtoRepository.save(produtoExistente);
     }
@@ -40,7 +48,7 @@ public class ProdutoService {
     public Produto alternarStatusDisponibilidade(Long id) {
         Produto produto = buscarPorId(id);
         
-        boolean novoStatus = !produto.getPrudutoDisponivel();
+        boolean novoStatus = !Boolean.TRUE.equals(produto.getPrudutoDisponivel());
         produto.setPrudutoDisponivel(novoStatus);
 
         return produtoRepository.save(produto);
@@ -65,6 +73,16 @@ public class ProdutoService {
         if (produtoRepository.existsByNome(nome)) {
             throw erro("Já existe um produto cadastrado com o nome " + nome + ".");
         }
+    }
+
+    private void validarProduto(Produto produto) {
+        if (produto == null || vazio(produto.getNome()) || vazio(produto.getDescricao()) || vazio(produto.getURL())) {
+            throw erro("Nome, descrição e URL são obrigatórios.");
+        }
+    }
+
+    private boolean vazio(String valor) {
+        return valor == null || valor.isBlank();
     }
 
     private ResponseStatusException erro(String mensagem) {

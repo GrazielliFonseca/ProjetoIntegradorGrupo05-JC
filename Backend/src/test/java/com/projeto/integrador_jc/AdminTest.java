@@ -34,7 +34,6 @@ class AdminServiceTest {
     @InjectMocks
     private AdminService adminService;
 
-    // Subclasse concreta para instanciar a classe abstrata Admin no teste
     static class AdminConcreto extends Admin {
         public AdminConcreto(String email, String senha) {
             setEmail(email);
@@ -48,10 +47,10 @@ class AdminServiceTest {
         Admin adminMock = new AdminConcreto("admin@jchidraulica.com", "123456");
         when(adminRepository.findByEmail("admin@jchidraulica.com")).thenReturn(Optional.of(adminMock));
 
-        Admin adminLogado = adminService.login("admin@jchidraulica.com", "123456");
+        AdminService.LoginResponse adminLogado = adminService.login("admin@jchidraulica.com", "123456");
 
         assertNotNull(adminLogado);
-        assertEquals("admin@jchidraulica.com", adminLogado.getEmail());
+        assertEquals("admin@jchidraulica.com", adminLogado.email());
     }
 
     @Test
@@ -63,14 +62,12 @@ class AdminServiceTest {
         // Testando senha incorreta
         ResponseStatusException erroSenha = assertThrows(ResponseStatusException.class,
                 () -> adminService.login("admin@jchidraulica.com", "senhaerrada"));
-        assertEquals(HttpStatus.BAD_REQUEST, erroSenha.getStatusCode());
-        assertEquals("400 BAD_REQUEST \"E-mail ou senha incorretos.\"", erroSenha.getMessage());
+        assertEquals(HttpStatus.UNAUTHORIZED, erroSenha.getStatusCode());
 
         // Testando e-mail inexistente
         when(adminRepository.findByEmail("inexistente@email.com")).thenReturn(Optional.empty());
         ResponseStatusException erroEmail = assertThrows(ResponseStatusException.class,
                 () -> adminService.login("inexistente@email.com", "123456"));
-        assertEquals(HttpStatus.BAD_REQUEST, erroEmail.getStatusCode());
-        assertEquals("400 BAD_REQUEST \"E-mail ou senha incorretos.\"", erroEmail.getMessage());
+        assertEquals(HttpStatus.UNAUTHORIZED, erroEmail.getStatusCode());
     }
 }

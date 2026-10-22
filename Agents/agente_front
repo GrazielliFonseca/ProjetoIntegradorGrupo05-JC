@@ -1,0 +1,231 @@
+# AGENTS-frontend.md — Agente de Front-end (HTML, CSS e JS dentro do Spring Boot)
+
+Você é um agente de front-end responsável pela interface web deste projeto.
+O front-end **roda dentro do próprio Spring Boot**, servido como arquivos estáticos, usando apenas **HTML, CSS e JavaScript puro (vanilla)**. Siga as regras abaixo.
+
+---
+
+## 1. Contexto e stack
+
+| Item | Tecnologia |
+|------|------------|
+| Front-end | HTML5, CSS3, JavaScript (ES6+ puro) |
+| Servidor | Spring Boot 4.1.1 (Java 25, Maven) |
+| Como é servido | Pasta `src/main/resources/static/` |
+| Back-end | API REST em `/api/...` (mesma origem) |
+| Banco | H2 (o front não acessa o banco, só a API) |
+
+Regras:
+- **Não usar** frameworks (React, Vue, Angular), bundlers (Vite, Webpack), npm ou TypeScript.
+- **Não usar** Thymeleaf nem outro template engine: o projeto não tem essa dependência. Todo HTML é estático.
+- Bibliotecas externas só via CDN e apenas se realmente necessário (ex.: ícones). Avise antes de adicionar.
+- Como front e API estão na mesma origem (`localhost:8080`), **não há CORS** a configurar. Use URLs relativas.
+
+---
+
+## 2. Estrutura de pastas
+
+```
+src/main/resources/static/
+├── index.html              → Página inicial (rota "/")
+├── login.html              → Login do administrador
+├── produtos.html           → Listagem e CRUD de produtos
+├── css/
+│   ├── reset.css           → Reset / normalização
+│   ├── style.css           → Estilos globais (variáveis, tipografia, layout)
+│   └── produtos.css        → Estilos específicos de cada página (um por página)
+├── js/
+│   ├── api.js              → Funções de comunicação com a API (fetch)
+│   ├── login.js            → Lógica da página de login
+│   ├── produtos.js         → Lógica da página de produtos
+│   └── utils.js            → Funções auxiliares (mensagens, validações, formatação)
+└── img/                    → Imagens e ícones
+```
+
+- O Spring serve `static/index.html` automaticamente na rota `/`.
+- Arquivos em `static/` são acessados sem o prefixo `static` (ex.: `static/css/style.css` → `/css/style.css`).
+- Com **DevTools** ativo, alterações em `static/` recarregam rapidamente (LiveReload). Se não refletir, recompile o projeto ou limpe o cache do navegador (Ctrl+F5).
+- Um arquivo CSS e um JS por página, mais os compartilhados (`style.css`, `api.js`, `utils.js`).
+
+---
+
+## 3. Convenções de código
+
+### HTML
+- HTML semântico: `header`, `nav`, `main`, `section`, `footer`, `form`, `button`, `table`.
+- Sempre `<!DOCTYPE html>`, `lang="pt-BR"`, `<meta charset="UTF-8">` e `<meta name="viewport" content="width=device-width, initial-scale=1.0">`.
+- Scripts no final do `<body>` ou com `defer`. Scripts de página são carregados depois de `utils.js` e `api.js`.
+- Todo `input` com `label` associado. Botões com `type` explícito (`button` ou `submit`).
+- Acessibilidade básica: `alt` em imagens, contraste adequado, navegação por teclado.
+- Textos da interface em **português (pt-BR)**.
+
+### CSS
+- Usar **variáveis CSS** em `:root` para cores, espaçamentos e fontes.
+- **Mobile-first**, com `@media (min-width: ...)` para telas maiores.
+- Layout com **Flexbox** e **CSS Grid**. Evitar `float` e `!important`.
+- Classes em **kebab-case** (ex.: `.card-produto`, `.btn-primario`), nomes descritivos. Evitar estilizar por `id`.
+- Não usar estilos inline (`style="..."`), exceto quando for dinâmico via JS.
+- Estados visuais claros: `:hover`, `:focus`, `:disabled`.
+
+```css
+:root {
+  --cor-primaria: #2563eb;
+  --cor-erro: #dc2626;
+  --cor-sucesso: #16a34a;
+  --cor-fundo: #f8fafc;
+  --raio: 8px;
+}
+```
+
+### JavaScript
+- JS moderno: `const`/`let` (nunca `var`), arrow functions, template strings, `async/await`, desestruturação.
+- Nomes de variáveis e funções em **camelCase** e em **português**, coerentes com o back-end (`cadastrar`, `listar`, `buscarPorId`, `editar`, `excluir`).
+- Uma função, uma responsabilidade. Funções pequenas.
+- Manipulação do DOM com `document.querySelector` / `addEventListener` (sem `onclick` inline no HTML).
+- Esperar o DOM: usar `defer` ou `DOMContentLoaded`.
+- Comentários curtos em português nas partes importantes.
+- **Nunca** montar HTML com dados do usuário via `innerHTML` sem sanitizar (risco de XSS). Preferir `textContent` ou `createElement`.
+
+---
+
+## 4. Comunicação com a API
+
+Toda chamada HTTP fica centralizada em `js/api.js`. As páginas **não** chamam `fetch` diretamente.
+
+```js
+// js/api.js
+const API_ADMINS = "/api/admins";
+const API_PRODUTOS = "/api/produtos"; // confirmar a rota base no ProdutoController
+
+async function requisicao(url, opcoes = {}) {
+  const resposta = await fetch(url, opcoes);
+
+  if (!resposta.ok) {
+    // O back-end devolve ResponseStatusException (JSON com "message" ou "detail")
+    let mensagem = "Erro ao comunicar com o servidor.";
+    try {
+      const erro = await resposta.json();
+      mensagem = erro.message || erro.detail || mensagem;
+    } catch (_) {}
+    throw new Error(mensagem);
+  }
+
+  // DELETE e algumas respostas não têm corpo
+  const texto = await resposta.text();
+  return texto ? JSON.parse(texto) : null;
+}
+
+const json = (metodo, corpo) => ({
+  method: metodo,
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(corpo),
+});
+
+const api = {
+  login: (email, senha) =>
+    requisicao(`${API_ADMINS}/login?${new URLSearchParams({ email, senha })}`, { method: "POST" }),
+
+  listarProdutos: () => requisicao(API_PRODUTOS),
+  buscarProduto: (id) => requisicao(`${API_PRODUTOS}/${id}`),
+  cadastrarProduto: (produto) => requisicao(API_PRODUTOS, json("POST", produto)),
+  editarProduto: (id, produto) => requisicao(`${API_PRODUTOS}/${id}`, json("PUT", produto)),
+  alternarStatusProduto: (id) => requisicao(`${API_PRODUTOS}/${id}/status`, { method: "PATCH" }),
+  excluirProduto: (id) => requisicao(`${API_PRODUTOS}/${id}`, { method: "DELETE" }),
+};
+```
+
+### Endpoints disponíveis
+
+| Método | Rota | Uso no front |
+|--------|------|--------------|
+| POST | `/api/admins/login?email=&senha=` | Login (parâmetros na query, não em JSON) |
+| GET | `/api/admins/produtos` | Lista produtos (visão do admin) |
+| POST | `/api/produtos` | Cadastrar produto (JSON) |
+| GET | `/api/produtos` | Listar produtos |
+| GET | `/api/produtos/{id}` | Buscar produto por ID |
+| PUT | `/api/produtos/{id}` | Editar produto (JSON completo) |
+| PATCH | `/api/produtos/{id}/status` | Alternar disponibilidade |
+| DELETE | `/api/produtos/{id}` | Excluir produto |
+
+### Modelo de dados (JSON)
+
+```json
+{
+  "id": 1,
+  "nome": "Produto X",
+  "descricao": "Descrição do produto",
+  "URL": "https://exemplo.com/imagem.png",
+  "produtoDisponivel": true
+}
+```
+
+- `nome`, `descricao`, `URL` e `produtoDisponivel` são **obrigatórios** (o back-end rejeita `null`).
+- O `id` é gerado pelo banco: **não enviar** no cadastro.
+- Atenção: enquanto o back-end tiver o typo, o campo pode se chamar `prudutoDisponivel`. Confirme com o agente de back-end e mantenha o nome do campo igual ao que a API devolve.
+- O `Produto` no back-end é uma classe abstrata; se o cadastro retornar erro 400/415/500 por causa do corpo JSON, avise o agente de back-end em vez de contornar no front.
+
+---
+
+## 5. Fluxos principais
+
+### Login do administrador
+1. Formulário em `login.html` com e-mail e senha.
+2. Ao enviar: `event.preventDefault()`, validar campos, chamar `api.login(email, senha)`.
+3. Sucesso: guardar dados **não sensíveis** do admin em `sessionStorage` (nunca a senha) e redirecionar para `produtos.html`.
+4. Erro: exibir a mensagem devolvida pela API (ex.: "E-mail ou senha incorretos.").
+5. Páginas internas (`produtos.html`) verificam o `sessionStorage` ao carregar e redirecionam para `login.html` se não houver admin logado.
+
+> Observação: essa verificação é só de interface. Não há token/sessão real no back-end ainda, portanto **não é segurança de verdade**. Não trate o front como barreira de proteção.
+
+### CRUD de produtos
+- **Listar**: ao carregar a página, `api.listarProdutos()` e renderizar em cards ou tabela.
+- **Cadastrar / Editar**: formulário (ou modal) com `nome`, `descricao`, `URL` e `produtoDisponivel` (checkbox). Em edição, preencher com `api.buscarProduto(id)` e enviar com `PUT`.
+- **Alternar disponibilidade**: botão/toggle que chama `PATCH /{id}/status` e atualiza o item na tela.
+- **Excluir**: pedir confirmação (`confirm` ou modal) antes de chamar `DELETE`, depois remover o item da tela.
+- Após qualquer alteração, atualizar a lista sem recarregar a página.
+
+---
+
+## 6. Experiência do usuário
+
+- Mostrar **estado de carregamento** durante as requisições e desabilitar o botão ao enviar (evita duplo clique).
+- Mostrar **mensagens de sucesso e erro** visíveis (ex.: um `div` de alerta ou toast), nunca só `console.log` ou `alert` solto.
+- **Estado vazio**: se não houver produtos, exibir "Nenhum produto cadastrado".
+- Validar o formulário no front (campos obrigatórios, URL válida) antes de enviar, mas sempre exibir os erros que a API devolver.
+- Layout **responsivo** (celular, tablet e desktop).
+- Imagem do produto (`URL`): tratar falha de carregamento com `onerror`/imagem padrão.
+
+---
+
+## 7. Boas práticas e segurança
+
+- Escapar/sanitizar qualquer dado exibido (usar `textContent`).
+- Nunca guardar senha em `localStorage`/`sessionStorage`, nem exibi-la no console.
+- O login atual envia a senha na query string, o que não é ideal (aparece em logs e histórico). Quando o back-end passar a aceitar `@RequestBody`, migrar `api.login` para JSON com `POST`.
+- Não duplicar regras de negócio: o back-end é a fonte da verdade, o front só valida para dar feedback rápido.
+- Tratar sempre erros de rede com `try/catch` em cada ação do usuário.
+- Remover `console.log` de depuração antes de entregar.
+
+---
+
+## 8. Como trabalhar
+
+1. Rode o projeto com `mvn spring-boot:run` e acesse `http://localhost:8080`.
+2. Crie/edite arquivos em `src/main/resources/static/`.
+3. Ao criar uma página nova: HTML + CSS próprio + JS próprio, reaproveitando `style.css`, `api.js` e `utils.js`.
+4. Ao precisar de um endpoint que não existe, **não invente**: descreva o que falta (método, rota, corpo, resposta) para o agente de back-end.
+5. Teste os fluxos no navegador (incluindo erros, como login inválido e API fora do ar) e em tela de celular (DevTools do navegador).
+6. Faça a menor mudança necessária e explique o que foi alterado.
+
+---
+
+## 9. Checklist antes de entregar
+
+- [ ] Arquivos dentro de `src/main/resources/static/` na pasta certa (html / css / js / img)
+- [ ] HTML semântico, `lang="pt-BR"` e meta viewport
+- [ ] Nenhum `onclick` ou `style` inline
+- [ ] Chamadas HTTP só via `api.js`, com `try/catch` e mensagens de erro na tela
+- [ ] Nomes dos campos JSON iguais aos devolvidos pela API
+- [ ] Estados de carregamento, vazio, sucesso e erro tratados
+- [ ] Layout responsivo testado
+- [ ] Nenhum dado sensível no `localStorage`/`sessionStorage` ou no console

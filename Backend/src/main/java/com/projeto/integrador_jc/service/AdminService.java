@@ -22,12 +22,12 @@ public class AdminService {
         this.produtoRepository = produtoRepository;
     }
 
-    public Admin login(String email, String senha) {
+    public LoginResponse login(String email, String senha) {
         Admin admin = adminRepository.findByEmail(email)
-                .filter(a -> a.getSenha().equals(senha))
+                .filter(a -> a.getSenha() != null && a.getSenha().equals(senha))
                 .orElseThrow(() -> erro("E-mail ou senha incorretos."));
 
-        return admin;
+        return new LoginResponse(admin.getId(), admin.getEmail());
     }
     
     public List<Produto> listarProdutos() {
@@ -35,6 +35,8 @@ public class AdminService {
     }
 
     private ResponseStatusException erro(String mensagem) {
-        return new ResponseStatusException(HttpStatus.BAD_REQUEST, mensagem);
+        return new ResponseStatusException(HttpStatus.UNAUTHORIZED, mensagem);
     }
+
+    public record LoginResponse(Long id, String email) { }
 }

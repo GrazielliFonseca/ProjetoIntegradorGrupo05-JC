@@ -16,7 +16,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 
-public abstract class Produto{
+public class Produto{
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,10 +25,10 @@ public abstract class Produto{
     @Column (nullable = false)
     private String nome;
 
-    @Column (nullable = false)
+    @Column (nullable = false, length = 5000)
     private String descricao;
 
-    @Column (nullable = false)
+    @Column (nullable = false, length = 1000000)
     private String URL;
 
     @Column (nullable = false)

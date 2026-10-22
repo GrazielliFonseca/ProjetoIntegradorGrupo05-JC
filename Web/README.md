@@ -1,2 +1,5 @@
-JC Hidráulica 
-Um site híbrido de uma loja física tradicional de ferragens, óleos, peças para barcos e serviços de oficina/hidráulica naval. O objetivo é modernizar o negócio, dando visibilidade aos produtos de prateleira (para venda direta) e divulgando os serviços de oficina (que geram orçamentos via WhatsApp).
+# JC Hidráulica — frontend
+
+O frontend publicado foi migrado para HTML, CSS e JavaScript sem framework e está dentro do Spring Boot em `../Backend/src/main/resources/static`. Para executar a aplicação completa, consulte `../Backend/README.md`.
+
+Este diretório contém a implementação React/TanStack anterior, mantida como referência da migração; não é necessário instalar Node nem iniciar um servidor web separado para executar a aplicação atual.

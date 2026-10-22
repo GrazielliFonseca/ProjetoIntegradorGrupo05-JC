@@ -1,0 +1,237 @@
+# AGENTS.md — Agente de Back-end (Java / Spring Boot)
+
+Você é um agente de back-end responsável por desenvolver e manter esta API REST.
+Siga rigorosamente a stack, a arquitetura e as convenções descritas abaixo.
+
+---
+
+## 1. Stack do projeto
+
+| Item | Versão / Tecnologia |
+|------|---------------------|
+| Linguagem | Java 25 |
+| Build | Maven |
+| Framework | Spring Boot 4.1.1 |
+| Dependências | Spring Web, Spring Boot DevTools, Lombok, Spring Data JPA, H2 Database |
+| Banco de dados | H2 (em memória, ambiente de desenvolvimento) |
+
+Regras:
+- Não adicionar dependências novas sem necessidade clara e sem avisar.
+- Use recursos modernos do Java 25 quando fizer sentido (records para DTOs, `switch` com pattern matching, etc.), sem exageros.
+- Toda gestão de dependências é feita pelo `pom.xml` (Maven). Nunca use Gradle.
+
+---
+
+## 2. Arquitetura em camadas
+
+```
+src/main/java/<pacote-base>/
+├── model/         → Entidades JPA
+├── repository/    → Interfaces Spring Data JPA
+├── service/       → Regras de negócio
+└── controller/    → Endpoints REST
+```
+
+Fluxo obrigatório: **Controller → Service → Repository → Model**
+
+- **Controller**: recebe a requisição HTTP, delega ao Service e devolve a resposta. **Sem regra de negócio.**
+- **Service**: contém toda a regra de negócio e validações. Conversa com os Repositories.
+- **Repository**: apenas acesso a dados (interfaces que estendem `JpaRepository`).
+- **Model**: entidades JPA que representam as tabelas.
+
+O Controller nunca acessa o Repository diretamente.
+
+---
+
+## 3. Convenções de código
+
+### Geral
+- Nomes de classes, métodos e variáveis em **português** (ex.: `cadastrar`, `listar`, `buscarPorId`, `editar`, `excluir`), seguindo o padrão já existente.
+- Comentários explicativos em português, curtos, ao lado de anotações e métodos importantes (estilo já usado no projeto).
+- **Injeção de dependência por construtor**, com campos `private final`. Não usar `@Autowired` em campo.
+- Usar Lombok (`@Getter`, `@Setter`, `@NoArgsConstructor`) nas entidades.
+
+### Model
+```java
+@Entity // Define a classe como uma entidade JPA (tabela no banco)
+@Table(name = "tb_produto") // Nome da tabela no banco de dados
+@Getter
+@Setter
+@NoArgsConstructor // Construtor vazio exigido pelo JPA
+public abstract class Produto {
+
+    @Id // Chave primária
+    @GeneratedValue(strategy = GenerationType.IDENTITY) // Auto-incremento pelo banco
+    private Long id;
+
+    @Column(nullable = false)
+    private String nome;
+
+    @Column(nullable = false)
+    private String descricao;
+
+    @Column(nullable = false)
+    private String URL;
+
+    @Column(nullable = false)
+    private Boolean produtoDisponivel;
+}
+```
+- Tabelas com prefixo `tb_` (ex.: `tb_produto`).
+- Colunas obrigatórias com `@Column(nullable = false)`.
+- `Produto` é uma **classe abstrata**: não pode ser instanciada diretamente (veja a seção 7).
+
+### Repository
+```java
+public interface ProdutoRepository extends JpaRepository<Produto, Long> {
+    boolean existsByNome(String nome);
+    Optional<Produto> findByNome(String nome);
+    List<Produto> findByProdutoDisponivel(Boolean produtoDisponivel);
+}
+
+public interface AdminRepository extends JpaRepository<Admin, Long> {
+    boolean existsByDocumento(String documento);
+    Optional<Admin> findByEmail(String email);
+}
+```
+- Preferir *derived queries* do Spring Data (`existsBy…`, `findBy…`).
+- Retornar `Optional<T>` para buscas de um único registro.
+- Os nomes dos métodos **devem corresponder exatamente** aos atributos da entidade.
+
+### Service
+```java
+@Service // Componente de serviço do Spring (contém a regra de negócio)
+public class AdminService {
+
+    private final AdminRepository adminRepository;
+    private final ProdutoRepository produtoRepository;
+
+    public AdminService(AdminRepository adminRepository, ProdutoRepository produtoRepository) {
+        this.adminRepository = adminRepository;
+        this.produtoRepository = produtoRepository;
+    }
+
+    public Admin login(String email, String senha) {
+        return adminRepository.findByEmail(email)
+                .filter(a -> a.getSenha().equals(senha))
+                .orElseThrow(() -> erro("E-mail ou senha incorretos."));
+    }
+
+    public List<Produto> listarProdutos() {
+        return produtoRepository.findAll();
+    }
+
+    private ResponseStatusException erro(String mensagem) {
+        return new ResponseStatusException(HttpStatus.BAD_REQUEST, mensagem);
+    }
+}
+```
+- Erros de negócio: lançar `ResponseStatusException` via método auxiliar privado `erro(String mensagem)`.
+- Validações (ex.: nome duplicado com `existsByNome`) ficam no Service.
+
+### Controller
+```java
+@RestController // Controlador REST
+@RequestMapping("/api/admins") // URL base dos endpoints
+public class AdminController {
+
+    private final AdminService adminService;
+
+    public AdminController(AdminService adminService) {
+        this.adminService = adminService;
+    }
+
+    @PostMapping("/login")
+    public Admin login(@RequestParam String email, @RequestParam String senha) {
+        return adminService.login(email, senha);
+    }
+
+    @GetMapping("/produtos")
+    public List<Produto> listarProdutos() {
+        return adminService.listarProdutos();
+    }
+}
+```
+
+---
+
+## 4. Endpoints existentes
+
+### Admin — base `/api/admins`
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| POST | `/login` | Login do admin (`email`, `senha` via `@RequestParam`) |
+| GET | `/produtos` | Lista todos os produtos |
+
+### Produto — CRUD (`ProdutoController`)
+
+| Método | Rota | Método do Controller | Service |
+|--------|------|----------------------|---------|
+| POST | `/` | `cadastrar(@RequestBody Produto)` | `cadastrar` |
+| GET | `/` | `listar()` | `listar` |
+| GET | `/{id}` | `buscar(@PathVariable Long id)` | `buscarPorId` |
+| PUT | `/{id}` | `editar(id, @RequestBody Produto)` | `editar` |
+| PATCH | `/{id}/status` | `alternarStatus(id)` | `alternarStatusDisponibilidade` |
+| DELETE | `/{id}` | `excluir(id)` | `excluir` |
+
+Padrão REST:
+- `POST` cria, `GET` consulta, `PUT` atualiza por completo, `PATCH` atualiza parcialmente, `DELETE` remove.
+- O `ProdutoController` deve ter `@RestController` e `@RequestMapping` com a rota base dos produtos (ex.: `/api/produtos`) e receber `ProdutoService` por construtor.
+- Rotas em minúsculas, no plural, sem verbos na URL (exceto ações como `/login`).
+
+---
+
+## 5. Banco de dados (H2)
+
+- Usar H2 em memória para desenvolvimento.
+- Configuração em `src/main/resources/application.properties`:
+
+```properties
+spring.datasource.url=jdbc:h2:mem:testdb
+spring.datasource.driverClassName=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.h2.console.enabled=true
+spring.h2.console.path=/h2-console
+```
+- Console H2 disponível em `http://localhost:8080/h2-console` durante o desenvolvimento.
+
+---
+
+## 6. Como trabalhar
+
+1. Ao criar uma nova funcionalidade, crie as camadas na ordem: **Model → Repository → Service → Controller**.
+2. Mantenha cada classe no seu pacote correto.
+3. Antes de finalizar, garanta que o projeto compila: `mvn clean compile`.
+4. Para rodar: `mvn spring-boot:run`. Para testes: `mvn test`.
+5. Mantenha o estilo existente (nomes em português, comentários curtos, injeção por construtor).
+6. Ao alterar algo existente, faça a menor mudança necessária e explique o que mudou.
+
+---
+
+## 7. Pontos de atenção (problemas conhecidos no código atual)
+
+Corrija ou avise ao trabalhar nestas áreas:
+
+1. **Typo `prudutoDisponivel`** na entidade `Produto`. O método `findByProdutoDisponivel` do Repository procura o atributo `produtoDisponivel`, que não existe → a aplicação **falha ao subir**. Renomear o atributo para `produtoDisponivel` (e ajustar getters/usos).
+2. **`Produto` é abstrata**, então `@RequestBody Produto` não consegue ser desserializado pelo Jackson. Opções: (a) remover `abstract`; ou (b) criar subclasses concretas e usar `@Inheritance` no JPA + `@JsonTypeInfo`/`@JsonSubTypes` no JSON. Se mantiver abstrata, definir a estratégia de herança.
+3. **Senha em texto puro** (`a.getSenha().equals(senha)`) e login via `@RequestParam`. Melhorar: hash com BCrypt (`spring-security-crypto` ou Spring Security) e receber credenciais em um DTO no `@RequestBody`.
+4. **Entidades expostas diretamente nos endpoints** (inclusive `Admin` com `senha` no retorno do login). Preferir DTOs (records) de entrada e saída, nunca devolver a senha.
+5. **Atributo `URL`** em maiúsculas foge do padrão Java; preferir `url`.
+6. **Sem validação de entrada**. Considerar `spring-boot-starter-validation` (`@NotBlank`, `@Valid`) se a dependência for autorizada.
+7. **Sem tratamento global de erros**. Considerar um `@RestControllerAdvice` para padronizar respostas.
+8. **Spring Boot 4 usa Jackson 3** por padrão. Ao configurar serialização customizada, use os pacotes `tools.jackson.*` (as anotações continuam em `com.fasterxml.jackson.annotation`).
+
+---
+
+## 8. Checklist antes de entregar
+
+- [ ] Código no pacote correto (model / repository / service / controller)
+- [ ] Controller sem regra de negócio
+- [ ] Injeção por construtor, campos `final`
+- [ ] Nomes de métodos do Repository batem com os atributos da entidade
+- [ ] Erros tratados com `ResponseStatusException`
+- [ ] Projeto compila (`mvn clean compile`) e sobe sem erros
