@@ -4,8 +4,12 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.env.Environment;
@@ -24,6 +28,9 @@ class AdminBootstrapTest {
 
     @Mock
     private Environment environment;
+
+    @Captor
+    private ArgumentCaptor<List<Admin>> savedAdmins;
 
     private final PasswordEncoder encoder = new BCryptPasswordEncoder();
 
@@ -72,7 +79,7 @@ class AdminBootstrapTest {
     void migratesPlaintextPasswordsOnlyOnce() {
         Admin old = new Admin();
         old.setSenha("legacy-secret");
-        when(adminRepository.findAll()).thenReturn(java.util.List.of(old));
+        when(adminRepository.findAll()).thenReturn(List.of(old));
         when(adminRepository.count()).thenReturn(1L);
         AdminBootstrap bootstrap = bootstrap("email", "secret", "doc");
         bootstrap.run();
@@ -80,7 +87,6 @@ class AdminBootstrapTest {
         bootstrap.run();
         org.junit.jupiter.api.Assertions.assertTrue(encoder.matches("legacy-secret", hash));
         org.junit.jupiter.api.Assertions.assertEquals(hash, old.getSenha());
-        org.mockito.ArgumentCaptor<java.util.List<Admin>> savedAdmins = org.mockito.ArgumentCaptor.forClass(java.util.List.class);
         verify(adminRepository).saveAll(savedAdmins.capture());
         org.junit.jupiter.api.Assertions.assertEquals(1, savedAdmins.getValue().size());
         org.junit.jupiter.api.Assertions.assertEquals(hash, savedAdmins.getValue().get(0).getSenha());
