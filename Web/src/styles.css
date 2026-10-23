@@ -70,11 +70,12 @@
   body { margin: 0; background: var(--color-background); color: var(--color-foreground); font-family: var(--font-sans); }
   button, a, input, select, textarea { letter-spacing: 0; }
   button, a { cursor: pointer; }
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid var(--highlight-strong); outline-offset: 3px; }
 }
 
 @keyframes rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 @utility animate-rise { animation: rise .55s ease-out both; }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }

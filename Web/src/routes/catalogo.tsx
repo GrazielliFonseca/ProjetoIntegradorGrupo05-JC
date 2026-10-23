@@ -26,7 +26,7 @@ function Catalogo() {
       </div>
       {isLoading ? <p className="text-muted-foreground">Carregando produtos…</p> : list.length === 0 ? <div className="border border-dashed border-border bg-card p-12 text-center text-muted-foreground">Nenhum produto encontrado.</div> :
         <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">{list.slice((page - 1) * PER_PAGE, page * PER_PAGE).map((p) => <ProductCard key={p.id} product={p} />)}</div>}
-      {pages > 1 && <div className="mt-10 flex justify-center gap-2">{Array.from({ length: pages }, (_, i) => i + 1).map((n) => <button key={n} onClick={() => setPage(n)} className={`grid size-10 place-items-center rounded-sm border font-bold ${page === n ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card"}`}>{n}</button>)}</div>}
+      {pages > 1 && <div className="mt-10 flex flex-wrap justify-center gap-2">{Array.from({ length: pages }, (_, i) => i + 1).map((n) => <button key={n} onClick={() => setPage(n)} aria-label={`Página ${n}`} aria-current={page === n ? "page" : undefined} className={`grid size-11 place-items-center rounded-sm border font-bold ${page === n ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card"}`}>{n}</button>)}</div>}
     </div>
   </>;
 }

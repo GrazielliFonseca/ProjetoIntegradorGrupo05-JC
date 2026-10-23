@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import com.projeto.integrador_jc.repository.AdminRepository;
@@ -12,6 +13,7 @@ import com.projeto.integrador_jc.model.Produto;
 import com.projeto.integrador_jc.repository.ProdutoRepository;
 
 @SpringBootTest
+@TestPropertySource(properties = {"JC_ADMIN_EMAIL=test-admin@example.invalid", "JC_ADMIN_PASSWORD=test-password", "JC_ADMIN_DOCUMENTO=TEST-ADMIN-1"})
 class IntegradorJcApplicationTests {
 
 	@Autowired
@@ -25,8 +27,8 @@ class IntegradorJcApplicationTests {
 	}
 
 	@Test
-	void bootstrapsDemoAdminWhenDatabaseIsEmpty() {
-		assertTrue(adminRepository.findByEmail("demo-admin@localhost.invalid").isPresent());
+  void bootstrapsAdminWhenDatabaseIsEmpty() {
+		assertTrue(adminRepository.findByEmail("test-admin@example.invalid").isPresent());
 	}
 
 	@Test

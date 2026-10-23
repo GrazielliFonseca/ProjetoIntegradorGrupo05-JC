@@ -12,7 +12,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { Footer, Header } from "../components";
+import { Footer, Header, SupportChatButton } from "../components";
 import { StoreProvider } from "../lib/StoreProvider";
 
 function NotFoundComponent() {
@@ -122,7 +122,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <StoreProvider><Header /><main><Outlet /></main><Footer /></StoreProvider>
+      <StoreProvider><Header /><main><Outlet /></main><Footer /><SupportChatButton /></StoreProvider>
     </QueryClientProvider>
   );
 }

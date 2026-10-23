@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import com.projeto.integrador_jc.model.Admin;
 import com.projeto.integrador_jc.repository.AdminRepository;
@@ -34,6 +35,9 @@ class AdminServiceTest {
     @InjectMocks
     private AdminService adminService;
 
+    @org.mockito.Spy
+    private BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
     static class AdminConcreto extends Admin {
         public AdminConcreto(String email, String senha) {
             setEmail(email);
@@ -44,7 +48,7 @@ class AdminServiceTest {
     @Test
     @DisplayName("login com credenciais corretas retorna o admin")
     void loginSucesso() {
-        Admin adminMock = new AdminConcreto("admin@jchidraulica.com", "123456");
+        Admin adminMock = new AdminConcreto("admin@jchidraulica.com", passwordEncoder.encode("123456"));
         when(adminRepository.findByEmail("admin@jchidraulica.com")).thenReturn(Optional.of(adminMock));
 
         AdminService.LoginResponse adminLogado = adminService.login("admin@jchidraulica.com", "123456");
@@ -56,7 +60,7 @@ class AdminServiceTest {
     @Test
     @DisplayName("login com senha ou email incorretos lanca excecao generica 400")
     void loginInvalido() {
-        Admin adminMock = new AdminConcreto("admin@jchidraulica.com", "123456");
+        Admin adminMock = new AdminConcreto("admin@jchidraulica.com", passwordEncoder.encode("123456"));
         when(adminRepository.findByEmail("admin@jchidraulica.com")).thenReturn(Optional.of(adminMock));
 
         // Testando senha incorreta
