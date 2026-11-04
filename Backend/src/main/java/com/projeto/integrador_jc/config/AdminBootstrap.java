@@ -14,6 +14,9 @@ import com.projeto.integrador_jc.repository.AdminRepository;
 public class AdminBootstrap implements CommandLineRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(AdminBootstrap.class);
+    private static final String DEFAULT_EMAIL = "demo-admin@localhost.invalid";
+    private static final String DEFAULT_PASSWORD = "JC-Demo-Only-7vQ!4mZ#9pL2xR";
+    private static final String DEFAULT_DOCUMENTO = "LOCAL-DEMO-ADMIN";
 
     private final AdminRepository adminRepository;
     private final String email;
@@ -23,10 +26,15 @@ public class AdminBootstrap implements CommandLineRunner {
 
     public AdminBootstrap(AdminRepository adminRepository, Environment environment, PasswordEncoder passwordEncoder) {
         this.adminRepository = adminRepository;
-        this.email = environment.getProperty("JC_ADMIN_EMAIL");
-        this.password = environment.getProperty("JC_ADMIN_PASSWORD");
-        this.documento = environment.getProperty("JC_ADMIN_DOCUMENTO");
+        this.email = configuredValue(environment, "JC_ADMIN_EMAIL", DEFAULT_EMAIL);
+        this.password = configuredValue(environment, "JC_ADMIN_PASSWORD", DEFAULT_PASSWORD);
+        this.documento = configuredValue(environment, "JC_ADMIN_DOCUMENTO", DEFAULT_DOCUMENTO);
         this.passwordEncoder = passwordEncoder;
+    }
+
+    private String configuredValue(Environment environment, String property, String defaultValue) {
+        String value = environment.getProperty(property);
+        return value == null ? defaultValue : value;
     }
 
     @Override
@@ -62,9 +70,9 @@ public class AdminBootstrap implements CommandLineRunner {
 
     private void validateConfiguration() {
         java.util.List<String> missing = new java.util.ArrayList<>();
-        if (email == null || email.isBlank()) missing.add("JC_ADMIN_EMAIL");
-        if (password == null || password.isBlank()) missing.add("JC_ADMIN_PASSWORD");
-        if (documento == null || documento.isBlank()) missing.add("JC_ADMIN_DOCUMENTO");
+        if (email.isBlank()) missing.add("JC_ADMIN_EMAIL");
+        if (password.isBlank()) missing.add("JC_ADMIN_PASSWORD");
+        if (documento.isBlank()) missing.add("JC_ADMIN_DOCUMENTO");
         if (!missing.isEmpty()) {
             throw new IllegalStateException("Required environment variable(s) missing or blank: " + String.join(", ", missing));
         }

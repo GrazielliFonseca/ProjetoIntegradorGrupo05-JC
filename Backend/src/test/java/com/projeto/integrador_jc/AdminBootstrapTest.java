@@ -56,6 +56,32 @@ class AdminBootstrapTest {
     }
 
     @Test
+    void usesLocalDemoDefaultsWhenEnvironmentValuesAreAbsent() {
+        when(adminRepository.count()).thenReturn(0L);
+        when(environment.getProperty("JC_ADMIN_EMAIL")).thenReturn(null);
+        when(environment.getProperty("JC_ADMIN_PASSWORD")).thenReturn(null);
+        when(environment.getProperty("JC_ADMIN_DOCUMENTO")).thenReturn(null);
+        AdminBootstrap bootstrap = new AdminBootstrap(adminRepository, environment, encoder);
+
+        bootstrap.run();
+
+        org.mockito.ArgumentCaptor<Admin> savedAdmin = org.mockito.ArgumentCaptor.forClass(Admin.class);
+        verify(adminRepository).save(savedAdmin.capture());
+        org.junit.jupiter.api.Assertions.assertEquals("demo-admin@localhost.invalid", savedAdmin.getValue().getEmail());
+        org.junit.jupiter.api.Assertions.assertTrue(encoder.matches("JC-Demo-Only-7vQ!4mZ#9pL2xR", savedAdmin.getValue().getSenha()));
+        org.junit.jupiter.api.Assertions.assertEquals("LOCAL-DEMO-ADMIN", savedAdmin.getValue().getDocumento());
+    }
+
+    @Test
+    void rejectsExplicitlyBlankEnvironmentValues() {
+        AdminBootstrap bootstrap = bootstrap(" ", "secret", "DOC");
+        org.junit.jupiter.api.Assertions.assertTrue(org.junit.jupiter.api.Assertions
+                .assertThrows(IllegalStateException.class, bootstrap::run).getMessage().contains("JC_ADMIN_EMAIL"));
+        verify(adminRepository, never()).findAll();
+        verify(adminRepository, never()).count();
+    }
+
+    @Test
     void leavesExistingAdminsUntouchedAndDoesNotReseed() {
         when(adminRepository.count()).thenReturn(1L);
         AdminBootstrap bootstrap = bootstrap("new@example.invalid", "new-secret", "NEW-1");
@@ -64,15 +90,6 @@ class AdminBootstrapTest {
         bootstrap.run();
 
         verify(adminRepository, never()).save(org.mockito.ArgumentMatchers.any(Admin.class));
-    }
-
-    @Test
-    void rejectsMissingEnvironmentValuesBeforeDatabaseChanges() {
-        AdminBootstrap bootstrap = bootstrap(" ", "secret", "DOC");
-        org.junit.jupiter.api.Assertions.assertTrue(org.junit.jupiter.api.Assertions
-                .assertThrows(IllegalStateException.class, bootstrap::run).getMessage().contains("JC_ADMIN_EMAIL"));
-        verify(adminRepository, never()).findAll();
-        verify(adminRepository, never()).count();
     }
 
     @Test

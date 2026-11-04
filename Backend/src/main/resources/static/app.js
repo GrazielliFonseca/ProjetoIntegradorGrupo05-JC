@@ -106,15 +106,29 @@
   function productCard(p) {
     const image = safeImage(p.image);
     return `<article class="product-card"><a class="product-thumb" href="#/produto/${encodeURIComponent(p.id)}" aria-label="Ver ${escapeHtml(p.name)}">${image ? `<img class="${p.available ? '' : 'unavailable'}" src="${escapeHtml(image)}" alt="${escapeHtml(p.name)}" loading="lazy">` : '<span class="image-fallback">Imagem indisponível</span>'}${p.available ? '' : '<span class="availability-ribbon">Indisponível no momento</span>'}</a>
-      <div class="product-info"><h3>${hashLink(`/produto/${encodeURIComponent(p.id)}`, escapeHtml(p.name))}</h3><p>${escapeHtml(p.description)}</p>${p.available ? `<a class="button whatsapp" href="${escapeHtml(productWa(p.name))}" target="_blank" rel="noopener">Consultar pelo WhatsApp</a>` : '<button class="button product-state" type="button" disabled>Indisponível</button>'}</div></article>`;
+      <div class="product-info"><h3>${hashLink(`/produto/${encodeURIComponent(p.id)}`, escapeHtml(p.name))}</h3><p>${escapeHtml(p.description)}</p>${p.available ? `<a class="button whatsapp" href="${escapeHtml(productWa(p.name))}" target="_blank" rel="noopener">Consultar pelo WhatsApp</a>` : ''}</div></article>`;
   }
   function productCollection(list, limit = list.length) {
     if (!list.length) return '<div class="empty-state"><h2>Nenhum produto encontrado</h2><p>Tente outro nome ou fale com a gente para localizar sua peça.</p></div>';
     return `<div class="product-grid">${list.slice(0, limit).map(productCard).join('')}</div>`;
   }
+  function featuredProducts(products, limit = 4) {
+    const seenIds = new Set();
+    const uniqueProducts = products.filter(p => {
+      const key = p.id ? `id:${p.id}` : p;
+      if (seenIds.has(key)) return false;
+      seenIds.add(key);
+      return true;
+    });
+    const unavailable = uniqueProducts.filter(p => p.available === false);
+    const availableSlots = Math.max(0, limit - unavailable.length);
+    const available = uniqueProducts.filter(p => p.available !== false).slice(0, availableSlots);
+    const selected = new Set([...unavailable, ...available]);
+    return uniqueProducts.filter(p => selected.has(p));
+  }
   function home() {
     return `<section class="hero"><img class="hero-art" src="/imagens/hero-jc.png" alt=""><div class="wrap hero-inner"><div class="hero-copy"><span class="eyebrow">Desde 2016 · Baixada Santista</span><h1>Peças náuticas, ferramentas e manutenção hidráulica em um só lugar.</h1><p>Especialistas em hidráulica de barco e oficina. Atendimento direto, diagnóstico preciso e as peças certas para seguir navegando.</p><div class="hero-actions">${button('Conheça nossos serviços&nbsp; →', 'button-yellow', '#/servicos')}${button('Ver catálogo', 'button-outline', '#/catalogo')}</div></div></div></section>
-      <section class="section"><div class="wrap"><div class="section-heading"><div><span class="eyebrow">Pronta entrega</span><h2>Destaques do catálogo</h2></div>${hashLink('/catalogo', 'Ver todo o catálogo&nbsp; →', 'text-link')}</div>${state.loading ? '<div class="loading-row"><span class="loader"></span>Carregando produtos…</div>' : productCollection(state.products.filter(p => p.available), 4)}${state.loadError ? `<p class="notice" role="status">${escapeHtml(state.loadError)} ${hashLink('/contato', 'Entre em contato.')}</p>` : ''}</div></section>
+      <section class="section"><div class="wrap"><div class="section-heading"><div><span class="eyebrow">Pronta entrega</span><h2>Destaques do catálogo</h2></div>${hashLink('/catalogo', 'Ver todo o catálogo&nbsp; →', 'text-link')}</div>${state.loading ? '<div class="loading-row"><span class="loader"></span>Carregando produtos…</div>' : productCollection(featuredProducts(state.products))}${state.loadError ? `<p class="notice" role="status">${escapeHtml(state.loadError)} ${hashLink('/contato', 'Entre em contato.')}</p>` : ''}</div></section>
       <section class="section section-white"><div class="wrap"><div class="section-heading"><div><span class="eyebrow">Mão na máquina</span><h2>Nossa oficina resolve</h2><p class="muted-intro">Serviço técnico com experiência prática para embarcações de trabalho e lazer.</p></div></div><div class="service-grid"><article class="service-card"><span class="service-mark" aria-hidden="true"><i data-lucide="waves"></i></span><div><h3>Manutenção hidráulica</h3><p>Mangueiras, conexões, direção e sistemas hidráulicos.</p></div></article><article class="service-card"><span class="service-mark" aria-hidden="true"><i data-lucide="package-search"></i></span><div><h3>Encomendas e peças raras</h3><p>Localizamos componentes difíceis e soluções sob medida.</p></div></article></div><div class="feature-strip"><span class="feature-icon" aria-hidden="true"><i data-lucide="shield-check"></i></span><span><b>Atendimento técnico de verdade.</b> Fale com quem entende de barco e ferramenta.</span></div></div></section>`;
   }
   function catalog() {
@@ -154,9 +168,8 @@
     return `<section class="login-wrap"><div class="login-panel" role="status"><span class="eyebrow">Área restrita</span><h1>Verificando acesso</h1><div class="loading-row"><span class="loader"></span>Validando sua sessão segura…</div></div></section>`;
   }
   function adminPanel() {
-    const identityLabel = state.adminIdentity?.email || state.adminIdentity?.nome || state.adminIdentity?.name || 'Administrador';
     const rows = state.adminProducts.map(p => `<tr><td><div class="admin-product">${p.image ? `<img src="${escapeHtml(p.image)}" alt="">` : '<img src="/imagens/logo-jc.png" alt="">'}<strong>${escapeHtml(p.name)}</strong></div></td><td class="description-cell">${escapeHtml(p.description)}</td><td><button class="status-toggle" role="switch" aria-checked="${p.available}" aria-label="Mudar disponibilidade de ${escapeHtml(p.name)}" data-action="toggle-product" data-id="${escapeHtml(p.id)}"><span class="toggle-track"></span>${p.available ? 'Disponível' : 'Indisponível'}</button></td><td><div class="row-actions"><button class="icon-button" type="button" data-action="edit-product" data-id="${escapeHtml(p.id)}" aria-label="Editar ${escapeHtml(p.name)}">✎</button><button class="icon-button delete" type="button" data-action="delete-product" data-id="${escapeHtml(p.id)}" aria-label="Excluir ${escapeHtml(p.name)}">×</button></div></td></tr>`).join('');
-    return `<section class="admin-area"><div class="wrap"><div class="admin-head"><div><span class="eyebrow">Administração · ${escapeHtml(identityLabel)}</span><h1>Gestão de produtos</h1></div><div class="admin-actions"><button class="button button-yellow" data-action="new-product" type="button">＋ Cadastrar produto</button><button class="button button-plain" data-action="logout" type="button">Sair</button></div></div>
+    return `<section class="admin-area"><div class="wrap"><div class="admin-head"><div><span class="eyebrow">Administração</span><h1>Gestão de produtos</h1></div><div class="admin-actions"><button class="button button-yellow" data-action="new-product" type="button">＋ Cadastrar produto</button><button class="button button-plain" data-action="logout" type="button">Sair</button></div></div>
       ${state.adminError ? `<div class="error-box" role="alert">${escapeHtml(state.adminError)} <button class="text-link" data-action="reload-admin" type="button">Tentar novamente</button></div>` : ''}
       <div class="table-wrap" role="region" aria-label="Tabela de produtos; deslize horizontalmente para ver todas as colunas" tabindex="0"><table><thead><tr><th>Produto</th><th>Descrição</th><th>Status</th><th style="text-align:right">Ações</th></tr></thead><tbody>${state.adminLoading ? '<tr><td colspan="4"><div class="loading-row"><span class="loader"></span>Carregando produtos…</div></td></tr>' : rows || '<tr><td colspan="4">Nenhum produto cadastrado.</td></tr>'}</tbody></table></div></div></section>${state.editing ? productModal() : ''}`;
   }

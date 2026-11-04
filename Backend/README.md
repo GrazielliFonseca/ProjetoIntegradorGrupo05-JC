@@ -25,6 +25,6 @@ Em um banco sem administradores, a aplicação cria uma conta local de demonstra
 - E-mail: `demo-admin@localhost.invalid`
 - Senha: `JC-Demo-Only-7vQ!4mZ#9pL2xR`
 
-Se já existir qualquer administrador, a conta de demonstração não é criada nem altera contas existentes. É possível configurar os dados iniciais com `JC_ADMIN_EMAIL`, `JC_ADMIN_PASSWORD` e `JC_ADMIN_DOCUMENTO` antes de iniciar a aplicação. Não use as credenciais de demonstração em produção: atualmente as senhas são armazenadas sem hash e o bootstrap usa valores locais padrão. Antes de expor o sistema publicamente, configure credenciais próprias e implemente armazenamento de senha com hash e autenticação apropriada.
+Se já existir qualquer administrador, a conta de demonstração não é criada nem altera contas existentes. É possível configurar os dados iniciais com `JC_ADMIN_EMAIL`, `JC_ADMIN_PASSWORD` e `JC_ADMIN_DOCUMENTO` antes de iniciar a aplicação. As senhas são armazenadas com BCrypt e senhas legadas em texto puro são migradas no startup. As credenciais padrão servem apenas para desenvolvimento local; configure valores próprios antes de expor o sistema publicamente.
 
 O catálogo consulta o backend; se a API estiver indisponível, a página inicial exibe produtos locais de demonstração e o catálogo informa que os dados não puderam ser atualizados.
